@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cai Nuoc, Ca Mau - Population Density WebGIS</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            text-align: center;
+            margin: 18px 0 0 0;
+            font-size: 2em;
+            font-weight: bold;
+        }
+        #map {
+            width: 100vw;
+            height: 95vh;
+        }
+        .legend {
+            background: rgba(255,255,255,0.9);
+            padding: 10px 16px;
+            line-height: 22px;
+            border-radius: 6px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            font-size: 15px;
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.8;
+        }
+        .commune-label {
+            font-weight: bold;
+            color: #333;
+            text-shadow: 1px 1px 2px #fff, 0 0 1px #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>Nguyen Van A</h1>
+    <div id="map"></div>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Center map on Cai Nuoc, Ca Mau (approximate coordinates)
+        var map = L.map('map').setView([8.9447, 104.9113], 11);
+
+        // Add OpenStreetMap base layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Graduated color for population density
+        function getColor(d) {
+            return d > 1000 ? '#800026' :
+                   d > 500  ? '#BD0026' :
+                   d > 250  ? '#E31A1C' :
+                   d > 100  ? '#FC4E2A' :
+                   d > 50   ? '#FD8D3C' :
+                   d > 10   ? '#FEB24C' :
+                   d > 0    ? '#FED976' :
+                              '#FFEDA0';
+        }
+
+        function style(feature) {
+            return {
+                fillColor: getColor(feature.properties.density),
+                weight: 1,
+                opacity: 1,
+                color: 'white',
+                dashArray: '2',
+                fillOpacity: 0.7
+            };
+        }
+
+        function onEachFeature(feature, layer) {
+            // Show commune name as permanent label
+            if (feature.properties && feature.properties.name) {
+                layer.bindTooltip(feature.properties.name, {
+                    permanent: true,
+                    direction: 'center',
+                    className: 'commune-label'
+                });
+            }
+            // Optional: Popup with more info
+            if (feature.properties && feature.properties.density) {
+                layer.bindPopup(
+                    "<b>" + feature.properties.name + "</b><br>" +
+                    "Population Density: " + feature.properties.density + " people/km²"
+                );
+            }
+        }
+
+        // Load population density GeoJSON
+        fetch('population-density.geojson')
+            .then(response => response.json())
+            .then(data => {
+                var geojsonLayer = L.geoJSON(data, {
+                    style: style,
+                    onEachFeature: onEachFeature
+                }).addTo(map);
+                // Fit map to the bounds of the communes
+                map.fitBounds(geojsonLayer.getBounds());
+            })
+            .catch(err => {
+                alert("Could not load population-density.geojson. Please check the file path.");
+            });
+
+        // Legend in the upper right corner
+        var legend = L.control({position: 'topright'});
+        legend.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'legend'),
+                grades = [0, 10, 50, 100, 250, 500, 1000],
+                labels = [];
+            div.innerHTML += '<b>Population Density<br>(people/km²)</b><br>';
+            for (var i = 0; i < grades.length; i++) {
+                div.innerHTML +=
+                    '<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+                    grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+            }
+            return div;
+        };
+        legend.addTo(map);
+    </script>
+</body>
+</html>
